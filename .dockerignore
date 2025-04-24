@@ -6,8 +6,8 @@ tkinter_ui
 **/*.md
 **/*.jpg
 **/*.png
-version.json
 .git
 .github
 .gitignore
 .gitattributes
+utils/nginx-rtmp-win32
