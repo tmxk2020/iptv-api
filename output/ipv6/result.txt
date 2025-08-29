@@ -1,5 +1,5 @@
 🕘️更新时间,#genre#
-2025-08-29 07:04:37,http://php.jdshipin.com:8880/TVOD/iptv.php?id=rthk33$订阅源
+2025-08-29 19:07:42,http://php.jdshipin.com:8880/TVOD/iptv.php?id=rthk33$订阅源
 
 📺央视频道,#genre#
 CCTV-1,http://php.jdshipin.com:8880/TVOD/iptv.php?id=rthk33$订阅源
@@ -108,6 +108,7 @@ CETV4,https://migu.188766.xyz/?migutoken=d5d19d868e1df41e984866fc7ca15071&id=CET
 央视台球,http://[2409:8087:7001:20:2::3]/dbiptv.sn.chinamobile.com/PLTV/88888893/224/3221226956/index.m3u8$订阅源
 风云音乐,https://radio.0472.org/?id=641$订阅源
 风云足球,http://[2409:8087:7001:20:2::3]/dbiptv.sn.chinamobile.com/PLTV/88888893/224/3221226984/index.m3u8$订阅源
+电视指南,https://cc06.tv12.xyz/39.m3u8$订阅源
 世界地理,http://[2409:8087:7001:20:2::3]/dbiptv.sn.chinamobile.com/PLTV/88888893/224/3221226947/index.m3u8$订阅源
 
 📡卫视频道,#genre#
