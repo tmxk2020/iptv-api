@@ -1,5 +1,5 @@
 🕘️更新时间,#genre#
-2025-11-12 19:07:59,http://php.jdshipin.com:8880/TVOD/iptv.php?id=rthk33$订阅源
+2025-11-13 07:04:15,http://php.jdshipin.com:8880/TVOD/iptv.php?id=rthk33$订阅源
 
 📺央视频道,#genre#
 CCTV-1,http://php.jdshipin.com:8880/TVOD/iptv.php?id=rthk33$订阅源
@@ -1093,6 +1093,7 @@ NewTV动作电影,http://3501776.xyz:35455/itv/1000000004000018653.m3u8?cdn=yste
 天映经典,https://classicarts.akamaized.net/hls/live/1024257/CAS/master.m3u8$订阅源
 天映经典,https://100.061833.xyz/stream/mytv/null-1/stream.m3u8?uid=3291919010&u=rty789&p=29624e2e4c4ccee26ed8f3e0ca1012ea57a8f2191be6149f632250f7036119cc$订阅源
 无线星河,http://php.jdshipin.com/smt.php?id=Xinhe$订阅源
+无线星河,https://cdn6.101.qzz.io/163189/tvbxh$订阅源
 星空卫视,http://tv.scjyhd.com:4022/udp/239.93.0.156:2193$订阅源
 星空卫视,http://iptv.huuc.edu.cn/hls/startv.m3u8$订阅源
 星空卫视,http://wouu.net:9977/udp/239.93.0.156:2193$订阅源
@@ -1252,6 +1253,7 @@ JJ斗地主,https://live.iill.top/douyin/685317364746$订阅源
 中华小当家,https://live.ottiptv.cc/huya/11342413$订阅源
 猫和老鼠,https://live.iill.top/huya/11352879$订阅源
 猫和老鼠,http://live.iill.top/huya.php?id=11352879$订阅源
+猫和老鼠,https://live.ottiptv.cc/huya/11352879$订阅源
 经典动漫,http://luobo.bkpcp.top/yy/24180320$订阅源
 经典动漫,https://www.goodiptv.club/yy/22777075$订阅源
 漫画解说,http://luobo.bkpcp.top/yy/1382735568$订阅源
