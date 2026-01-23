@@ -9,6 +9,10 @@ output_dir = "output"
 
 hls_path = os.path.join(config_dir, "hls")
 
+local_dir_path = os.path.join(config_dir, "local")
+
+local_path = os.path.join(config_dir, "local.txt")
+
 alias_path = os.path.join(config_dir, "alias.txt")
 
 epg_path = os.path.join(config_dir, "epg.txt")
@@ -35,7 +39,9 @@ hls_ipv4_result_path = os.path.join(output_dir, "ipv4/hls.txt")
 
 hls_ipv6_result_path = os.path.join(output_dir, "ipv6/hls.txt")
 
-cache_path = os.path.join(output_dir, "data/cache.pkl.gz")
+cache_path = os.path.join(output_dir, "data/cache.gz")
+
+frozen_path = os.path.join(output_dir, "data/frozen.gz")
 
 speed_test_log_path = os.path.join(output_dir, "log/speed_test.log")
 
