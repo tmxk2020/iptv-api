@@ -13,6 +13,8 @@ local_dir_path = os.path.join(config_dir, "local")
 
 local_path = os.path.join(config_dir, "local.txt")
 
+channel_logo_path = os.path.join(config_dir, "logo")
+
 alias_path = os.path.join(config_dir, "alias.txt")
 
 epg_path = os.path.join(config_dir, "epg.txt")
@@ -49,7 +51,7 @@ result_log_path = os.path.join(output_dir, "log/result.log")
 
 statistic_log_path = os.path.join(output_dir, "log/statistic.log")
 
-nomatch_log_path = os.path.join(output_dir, "log/nomatch.log")
+unmatch_log_path = os.path.join(output_dir, "log/unmatch.log")
 
 log_path = os.path.join(output_dir, "log/log.log")
 
@@ -69,10 +71,11 @@ multiline_txt_pattern = re.compile(r"^(?P<name>[^,，]+)[,，](?!#genre#)(?P<val
 m3u_pattern = re.compile(r"^#EXTINF:-1[\s+,，](?P<attributes>[^,，]+)[，,](?P<name>.*?)\n(?P<value>.+)$")
 
 multiline_m3u_pattern = re.compile(
-    r"^#EXTINF:-1[\s+,，](?P<attributes>[^,，]+)[，,](?P<name>.*?)\n(?P<options>(#EXTVLCOPT:.*\n)*?)(?P<value>.+)$",
-    re.MULTILINE)
+    r"^#EXTINF:-1(?:[\s+,，]*(?P<attributes>(?:[^,，\r\n\"]+|\"[^\"\r\n]*\")*))?[,，](?P<name>.*?)[\r\n]+"
+    r"(?P<options>(?:(?:[ \t]*\r?\n)+|#EXTVLCOPT:[^\r\n]*(?:\r?\n|$))*)(?P<value>.*?)(?=\r?\n(?:[ \t]*\r?\n)*#EXTINF:-1|\Z)",
+    re.MULTILINE | re.DOTALL)
 
-key_value_pattern = re.compile(r'(?P<key>\w+)=(?P<value>\S+)')
+key_value_pattern = re.compile(r'(?P<key>[\w-]+)=(?P<value>"[^"]*"|\'[^\']*\'|\S+)')
 
 sub_pattern = re.compile(
     r"-|_|\((.*?)\)|（(.*?)）|\[(.*?)]|「(.*?)」| |｜|频道|普清|标清|高清|HD|hd|超清|超高|超高清|4K|4k|中央|央视|电视台|台|电信|联通|移动")

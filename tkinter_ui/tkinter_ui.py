@@ -19,9 +19,11 @@ from prefer import PreferUI
 from local import LocalUI
 from subscribe import SubscribeUI
 from epg import EpgUI
-from utils.speed import check_ffmpeg_installed_status
+from utils.ffmpeg import check_ffmpeg_installed_status
 import pystray
 from service.app import run_service
+import atexit
+from service.rtmp import stop_rtmp_service
 
 
 class TkinterUI:
@@ -282,4 +284,6 @@ if __name__ == "__main__":
     root.after(0, config.copy("output"))
     if config.open_service:
         root.after(0, threading.Thread(target=run_service, daemon=True).start())
+        if config.open_rtmp and sys.platform == "win32":
+            atexit.register(stop_rtmp_service)
     root.mainloop()

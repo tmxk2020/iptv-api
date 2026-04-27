@@ -251,7 +251,7 @@ class ConfigManager:
 
     @property
     def speed_test_limit(self):
-        return self.config.getint("Settings", "speed_test_limit", fallback=10)
+        return self.config.getint("Settings", "speed_test_limit", fallback=5)
 
     @property
     def location(self):
@@ -312,6 +312,10 @@ class ConfigManager:
         return self.config.getint("Settings", "rtmp_max_streams", fallback=10)
 
     @property
+    def rtmp_transcode_mode(self):
+        return (self.config.get("Settings", "rtmp_transcode_mode", fallback="copy") or "copy").lower()
+
+    @property
     def public_scheme(self):
         return self.config.get("Settings", "public_scheme", fallback="http") or "http"
 
@@ -346,6 +350,40 @@ class ConfigManager:
     @property
     def language(self):
         return self.config.get("Settings", "language", fallback="zh_CN")
+
+    @property
+    def http_proxy(self):
+        return self.config.get("Settings", "http_proxy", fallback="").strip()
+
+    @property
+    def open_realtime_write(self):
+        return self.config.getboolean("Settings", "open_realtime_write", fallback=True)
+
+    @property
+    def open_full_speed_test(self):
+        return self.config.getboolean("Settings", "open_full_speed_test", fallback=False)
+
+    @property
+    def resolution_speed_map(self):
+        mapping = {}
+        for item in self.config.get("Settings", "resolution_speed_map", fallback="").split(","):
+            if ":" in item:
+                resolution_part, speed_part = item.split(":", 1)
+                resolution = resolution_part.strip()
+                try:
+                    speed = float(speed_part.strip())
+                    mapping[resolution] = speed
+                except ValueError:
+                    pass
+        return mapping
+
+    @property
+    def open_unmatch_category(self):
+        return self.config.getboolean("Settings", "open_unmatch_category", fallback=False)
+
+    @property
+    def open_auto_disable_source(self):
+        return self.config.getboolean("Settings", "open_auto_disable_source", fallback=True)
 
     def load(self):
         """

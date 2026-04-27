@@ -2,12 +2,12 @@ import asyncio
 import copy
 from collections import defaultdict
 from logging import INFO
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, Callable, cast
 
 import utils.constants as constants
 from utils.channel import sort_channel_result, generate_channel_statistic, write_channel_to_file, retain_origin
 from utils.config import config
-from utils.tools import get_logger
+from utils.tools import get_logger, close_logger_handlers
 
 
 class ResultAggregator:
@@ -20,23 +20,27 @@ class ResultAggregator:
             base_data: Dict[str, Dict[str, Any]],
             first_channel_name: Optional[str] = None,
             ipv6_support: bool = True,
-            write_interval: float = 2.0,
-            min_items_before_flush: int = 1,
+            write_interval: float = 5.0,
+            min_items_before_flush: int = config.urls_limit,
             flush_debounce: Optional[float] = None,
-            sort_logger=None,
             stat_logger=None,
-            last_full_sorted: Optional[Dict[str, Dict[str, Any]]] = None,
+            result: Optional[Dict[str, Dict[str, list]]] = None,
     ):
         self.base_data = base_data
+        self.result = sort_channel_result(
+            base_data,
+            result=result,
+            ipv6_support=ipv6_support
+        )
         self.test_results: Dict[str, Dict[str, list]] = defaultdict(lambda: defaultdict(list))
         self._dirty = False
         self._dirty_count = 0
         self._stopped = True
         self._task: Optional[asyncio.Task] = None
+        self.realtime_write = config.open_realtime_write
         self.write_interval = write_interval
         self.first_channel_name = first_channel_name
         self.ipv6_support = ipv6_support
-        self.sort_logger = sort_logger or get_logger(constants.result_log_path, level=INFO, init=True)
         self.stat_logger = stat_logger or get_logger(constants.statistic_log_path, level=INFO, init=True)
         self.is_last = False
         self._lock = asyncio.Lock()
@@ -44,7 +48,6 @@ class ResultAggregator:
         self.flush_debounce = flush_debounce if flush_debounce is not None else max(0.2, write_interval / 2)
         self._flush_event = asyncio.Event()
         self._debounce_task: Optional[asyncio.Task] = None
-        self.last_full_sorted = last_full_sorted
         self._pending_channels: Set[Tuple[str, str]] = set()
         self._finished_channels: Set[Tuple[str, str]] = set()
 
@@ -57,7 +60,8 @@ class ResultAggregator:
                 self._debounce_task = loop.create_task(self._debounce_loop())
             except Exception:
                 try:
-                    loop.call_soon_threadsafe(self._create_debounce_task_threadsafe)
+                    cast(Any, loop).call_soon_threadsafe(
+                        cast(Callable[[], None], self._create_debounce_task_threadsafe), *())
                 except Exception:
                     pass
 
@@ -68,49 +72,40 @@ class ResultAggregator:
         """
         self._debounce_task = asyncio.create_task(self._debounce_loop())
 
-    def add_item(self, cate: str, name: str, item: dict, is_channel_last: bool = False, is_last: bool = False):
+    def add_item(self, cate: str, name: str, item: dict, is_channel_last: bool = False, is_last: bool = False,
+                 is_valid: bool = True):
         """
         Add a test result item for a specific category and name.
         """
         self.test_results[cate][name].append(item)
-        self._dirty = True
-        self._dirty_count += 1
         self.is_last = is_last
         self._pending_channels.add((cate, name))
 
         if is_channel_last:
-            self._finished_channels.add((cate, name))
-
-        try:
-            self.sort_logger.info(
-                f"Name: {name}, URL: {item.get('url')}, From: {item.get('origin')}, "
-                f"IPv_Type: {item.get('ipv_type')}, Location: {item.get('location')}, ISP: {item.get('isp')}, "
-                f"Date: {item.get('date')}, Delay: {item.get('delay') or -1} ms, "
-                f"Speed: {(item.get('speed') or 0):.2f} M/s, Resolution: {item.get('resolution')}"
-            )
-        except Exception:
-            pass
-
-        if is_channel_last:
             try:
+                self._finished_channels.add((cate, name))
                 generate_channel_statistic(self.stat_logger, cate, name, self.test_results[cate][name])
             except Exception:
                 pass
 
-        try:
-            loop = asyncio.get_running_loop()
-            self._ensure_debounce_task_in_loop(loop)
-            loop.call_soon(self._flush_event.set)
-        except RuntimeError:
+        if is_valid and self.realtime_write:
             try:
-                loop = asyncio.get_event_loop()
+                self._dirty = True
+                self._dirty_count += 1
+                loop = asyncio.get_running_loop()
                 self._ensure_debounce_task_in_loop(loop)
-                loop.call_soon_threadsafe(self._flush_event.set)
-            except Exception:
-                pass
-
-        if self._dirty_count >= self._min_items_before_flush:
-            self._dirty_count = 0
+                if self._dirty_count >= self._min_items_before_flush:
+                    self._dirty_count = 0
+                    cast(Any, loop).call_soon(cast(Callable[[], None], self._flush_event.set), *())
+            except RuntimeError:
+                try:
+                    loop = asyncio.get_event_loop()
+                    self._ensure_debounce_task_in_loop(loop)
+                    if self._dirty_count >= self._min_items_before_flush:
+                        self._dirty_count = 0
+                        cast(Any, loop).call_soon_threadsafe(cast(Callable[[], None], self._flush_event.set), *())
+                except Exception:
+                    pass
 
     async def _atomic_write_sorted_view(
             self,
@@ -124,15 +119,7 @@ class ResultAggregator:
         if finished is None:
             finished = set()
 
-        if self.last_full_sorted is None:
-            try:
-                self.last_full_sorted = sort_channel_result(
-                    self.base_data, result=None, filter_host=config.speed_test_filter_host,
-                    ipv6_support=self.ipv6_support
-                )
-            except Exception:
-                self.last_full_sorted = defaultdict(lambda: defaultdict(list))
-
+        speed_test_filter_host = config.speed_test_filter_host
         if affected:
             partial_base = defaultdict(lambda: defaultdict(list))
             partial_result = defaultdict(lambda: defaultdict(list))
@@ -140,41 +127,60 @@ class ResultAggregator:
             for cate, name in affected:
                 base_entries = self.base_data.get(cate, {})
                 if name in base_entries:
-                    partial_base[cate][name] = base_entries[name]
+                    partial_base[cate][name] = list(base_entries[name])
 
                 partial_result[cate][name] = list(test_copy.get(cate, {}).get(name, []))
 
                 if (cate, name) not in finished:
-                    prev_sorted = self.last_full_sorted.get(cate, {}).get(name, [])
-                    seen = {it.get("url") for it in partial_result[cate][name] if it.get("url")}
+                    prev_sorted = self.result.get(cate, {}).get(name, [])
+                    seen = {it.get("url") for it in partial_result[cate][name] if
+                            isinstance(it, dict) and it.get("url")}
                     for item in prev_sorted:
-                        url = item.get("url") if isinstance(item, dict) else None
+                        if not isinstance(item, dict):
+                            continue
+                        url = item.get("url")
                         if url and url not in seen and item.get("origin") not in retain_origin:
                             partial_result[cate][name].append(item)
                             seen.add(url)
             try:
-                new_sorted = sort_channel_result(
-                    partial_base, result=partial_result, filter_host=config.speed_test_filter_host,
-                    ipv6_support=self.ipv6_support
-                )
+                if len(affected) == 1:
+                    cate_single, name_single = next(iter(affected))
+                    new_sorted = sort_channel_result(
+                        partial_base,
+                        result=partial_result,
+                        filter_host=speed_test_filter_host,
+                        ipv6_support=self.ipv6_support,
+                        cate=cate_single,
+                        name=name_single,
+                    )
+                else:
+                    new_sorted = sort_channel_result(
+                        partial_base, result=partial_result, filter_host=speed_test_filter_host,
+                        ipv6_support=self.ipv6_support
+                    )
             except Exception:
                 new_sorted = defaultdict(lambda: defaultdict(list))
         else:
             try:
                 new_sorted = sort_channel_result(
-                    self.base_data, result=test_copy, filter_host=config.speed_test_filter_host,
+                    self.base_data, result=test_copy, filter_host=speed_test_filter_host,
                     ipv6_support=self.ipv6_support
                 )
             except Exception:
                 new_sorted = defaultdict(lambda: defaultdict(list))
 
         merged = defaultdict(lambda: defaultdict(list))
-        for cate, names in (self.last_full_sorted or {}).items():
-            merged[cate].update({k: list(v) for k, v in names.items()})
+
+        for cate, names in self.base_data.items():
+            for name in names.keys():
+                merged[cate][name] = list(self.result.get(cate, {}).get(name, []))
+
         for cate, names in new_sorted.items():
+            if cate not in self.base_data:
+                continue
             for name, vals in names.items():
-                if vals:
-                    merged[cate][name] = vals
+                if name in self.base_data.get(cate, {}) and vals:
+                    merged[cate][name] = list(vals)
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
@@ -187,7 +193,7 @@ class ResultAggregator:
             self.is_last,
         )
 
-        self.last_full_sorted = merged
+        self.result = merged
 
     async def _debounce_loop(self):
         """
@@ -215,14 +221,22 @@ class ResultAggregator:
         async with self._lock:
             if not self._dirty and not force:
                 return
-            test_copy = copy.deepcopy(self.test_results)
+
             pending = set(self._pending_channels)
             self._pending_channels.clear()
 
             if force:
+                test_copy = copy.deepcopy(self.test_results)
                 finished_for_flush = set(self._finished_channels)
                 self._finished_channels.clear()
             else:
+                test_copy = defaultdict(lambda: defaultdict(list))
+                for cate, name in pending:
+                    items = self.test_results.get(cate, {}).get(name, [])
+                    copied_items = [it.copy() if isinstance(it, dict) else it for it in items]
+                    if copied_items:
+                        test_copy[cate][name] = copied_items
+
                 finished_for_flush = set(self._finished_channels & pending)
                 self._finished_channels.difference_update(finished_for_flush)
 
@@ -252,6 +266,9 @@ class ResultAggregator:
         """
         Start the aggregator's periodic flush loop.
         """
+        if not self.realtime_write:
+            self._stopped = False
+            return
         if self._task and not self._task.done():
             return
         self._task = asyncio.create_task(self._run_loop())
@@ -262,6 +279,11 @@ class ResultAggregator:
         """
         Stop the aggregator and clean up resources.
         """
+        try:
+            await self.flush_once(force=True)
+        except Exception:
+            pass
+
         self._stopped = True
         if self._task:
             await self._task
@@ -273,7 +295,5 @@ class ResultAggregator:
             except asyncio.CancelledError:
                 pass
             self._debounce_task = None
-        if self.sort_logger:
-            self.sort_logger.handlers.clear()
         if self.stat_logger:
-            self.stat_logger.handlers.clear()
+            close_logger_handlers(self.stat_logger)
